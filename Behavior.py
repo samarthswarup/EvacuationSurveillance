@@ -19,10 +19,10 @@ class Behavior:
     def runOneStep(cls, pop, roads):
         """Update the state of each person, location by location, by one time step"""
         logger.debug("Updating one step of the simulation")
-        newLocs = {}
-        for loc in pop.locations.keys():
-            while locations[loc]:
-                pid = locations[loc].pop()
+        # newLocs = {}
+        # for loc in pop.locations.keys():
+        #     while locations[loc]:
+        #         pid = locations[loc].pop()
                 
                 
     

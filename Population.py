@@ -50,7 +50,7 @@ class Population:
             self.people[self.maxPID] = {"age": age, "gender": gender, "location": location, "groupID": groupID, "behavior": behavior}
             self.peopleE.add(self.maxPID)
             self.numPeople += 1
-        logger.info("Created " + str(n) + " individual agents.")
+        logger.info("Created " + str(n) + " individuals.")
             
     def __createPairs(self, n):
         """Create pairs of agents"""
@@ -151,7 +151,7 @@ class Population:
         self.__createSize3Groups(self.groupSizeDistribution[3])
         self.__createSize4Groups(self.groupSizeDistribution[4])
         
-    def printPopulation(self):
+    def printPopulation_old(self):
         """Prints out the entire population"""
         print()
         print("Number of people: " + str(self.numPeople))
@@ -177,6 +177,25 @@ class Population:
         print()
         print("People staying put:")
         print(str(self.peopleS))
+        
+    def printPopulation(self):
+        """Prints out the entire population"""
+        print()
+        print("Number of people: " + str(self.numPeople))
+        print("Number of groups: " + str(self.numGroups))
+        print("Group size distribution: " + str(self.groupSizeDistribution))
+        print()
+        print("People: ")
+        for pid in self.people.keys():
+            print(str(pid) + ": " + str(self.people[pid]))
+        print()
+        print("Groups:")
+        for gid in self.groups.keys():
+            print(str(gid) + ": " + str(self.groups[gid]))
+        print("Locations:")
+        for loc in self.locations.keys():
+            print(str(loc) + ": " + str(self.locations[loc]))
+        
 
 
 

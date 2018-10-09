@@ -48,7 +48,7 @@ class RoadNetwork:
         logger.info("Marking " + str(e) + " nodes as exit nodes using reservoir sampling.")
         numExitNodes = e
         nodeNum = 0
-        for n in self.R.nodes_iter():
+        for n in self.R.nodes():
             if (nodeNum < numExitNodes):
                 self.exitNodeList.append(n)
             elif nodeNum >= numExitNodes and random.random() < numExitNodes/float(nodeNum+1):
@@ -72,7 +72,7 @@ class RoadNetwork:
         """Calculates the shortest path from each node to the nearest exit node"""
         # self.logger.info("Calculating shortest paths to exit nodes.")
         logger.info("Calculating shortest paths to exit nodes.")
-        for n in self.R.nodes_iter():
+        for n in self.R.nodes():
             shortestPathLength = nx.number_of_nodes(self.R)+1
             for x in self.exitNodeList:
                 shortestPath = nx.shortest_path(self.R, n, x)
