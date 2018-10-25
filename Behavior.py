@@ -19,33 +19,41 @@ class Behavior:
     def runOneStep(cls, pop, roads):
         """Update the state of each person, location by location, by one time step"""
         logger.debug("Updating one step of the simulation")
-        # newLocs = {}
-        # for loc in pop.locations.keys():
-        #     while locations[loc]:
-        #         pid = locations[loc].pop()
+        # Update who is traveling together with whom (i.e., which agents have rendezvoused)
+        cls.updateTogetherWith(pop)
+        updatedPeople = {}
+        updatedLocations = {}
+        for loc in pop.locations.keys():
+            while locations[loc]:
+                pid = locations[loc].pop()
+                state = pop.people[pid]
+                if (state["behavior"] == "E"):
+                    newstate = cls.evacuation(pid, state, roads)
+                    updatedPeople[pid] = newstate
+                elif (state["behavior"] == "R"):
+                    newstate = cls.rendezvous(pid, state, roads, pop)
+                    pop.people[pid] = newstate
+                elif (state["behavior"] == "X"):
+                    newstate = cls.exited(pid, state, roads)
+                    pop.people[pid] = newstate
+                elif (state["behavior"] == "S"):
+                    newstate = cls.stay(pid, state, roads)
+                    pop.people[pid] = newstate
+                else:
+                    print("Unknown behavior " + state["behavior"] + ", PID = " + str(pid))
+        # Update locations dictionary
                 
-                
-    
     @classmethod
-    def runOneStepOld(cls, pop, roads):
-        """Update the state of each person by one time step"""
-        logger.debug("Updating one step of the simulation.")
+    def updateTogetherWith(cls, pop):
+        """Update the togetherWith field for all agents, to keep track of agents who are in the same group
+        and have met in this time step. These agents will move together henceforth"""
+        logger.debug("Updating togetherWith for all agents")
         for pid in pop.people.keys():
             state = pop.people[pid]
-            if (state["behavior"] == "E"):
-                newstate = cls.evacuation(pid, state, roads)
-                pop.people[pid] = newstate
-            elif (state["behavior"] == "R"):
-                newstate = cls.rendezvous(pid, state, roads, pop)
-                pop.people[pid] = newstate
-            elif (state["behavior"] == "X"):
-                newstate = cls.exited(pid, state, roads)
-                pop.people[pid] = newstate
-            elif (state["behavior"] == "S"):
-                newstate = cls.stay(pid, state, roads)
-                pop.people[pid] = newstate
-            else:
-                print("Unknown behavior " + state["behavior"] + ", PID = " + str(pid))
+            groupMembers = pop.groups[state["groupID"]]
+            for member in groupMembers:
+                if (state["location"]==pop.people[member]["location"]):
+                    state["togetherWith"].add(member)
                 
     @classmethod
     def evacuation(cls, p, st, r):

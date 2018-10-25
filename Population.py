@@ -25,10 +25,6 @@ class Population:
         self.people = {} # PID: { age, gender, location, groupID, behavior }
         self.groups = {} # groupID: { set of PIDs belonging to the group }
         self.locations = {} # locationID: { set of PIDs at that location }
-        self.peopleE = set() # People Evacuating
-        self.peopleR = set() # People Rendezvousing
-        self.peopleX = set() # People eXited
-        self.peopleS = set() # People staying put
         
         self.maxPID = -1
         self.maxGID = -1
@@ -47,7 +43,8 @@ class Population:
             groupID = -1 # no group
             behavior = 'E'
             self.maxPID += 1
-            self.people[self.maxPID] = {"age": age, "gender": gender, "location": location, "groupID": groupID, "behavior": behavior}
+            self.people[self.maxPID] = {"age": age, "gender": gender, "location": location, \
+                                        "togetherWith": None, "groupID": groupID, "behavior": behavior}
             self.peopleE.add(self.maxPID)
             self.numPeople += 1
         logger.info("Created " + str(n) + " individuals.")
@@ -62,9 +59,11 @@ class Population:
             self.maxGID += 1
             
             groupSet = set()
+            togetherWith = set()
             for j in range(2):
                 self.maxPID += 1
-                self.people[self.maxPID] = {"age": ages[j], "gender": genders[j], "location": -1, "groupID": self.maxGID, "behavior": 'R'}
+                self.people[self.maxPID] = {"age": ages[j], "gender": genders[j], "location": -1, \
+                                            "togetherWith":togetherWith, "groupID": self.maxGID, "behavior": 'R'}
                 self.peopleR.add(self.maxPID)
                 groupSet.add(self.maxPID)
                 self.numPeople += 1
@@ -91,9 +90,11 @@ class Population:
             self.maxGID += 1
             
             groupSet = set()
+            togetherWith = set()
             for j in range(3):
                 self.maxPID += 1
-                self.people[self.maxPID] = {"age": ages[j], "gender": genders[j], "location": -1, "groupID": self.maxGID, "behavior": behaviors[j]}
+                self.people[self.maxPID] = {"age": ages[j], "gender": genders[j], "location": -1, \
+                                            "togetherWith":togetherWith, "groupID": self.maxGID, "behavior": behaviors[j]}
                 if (behaviors[j] == 'R'):
                     self.peopleR.add(self.maxPID)
                 else:
@@ -130,9 +131,11 @@ class Population:
             self.maxGID += 1
             
             groupSet = set()
+            togetherWith = set()
             for j in range(4):
                 self.maxPID += 1
-                self.people[self.maxPID] = {"age": ages[j], "gender": genders[j], "location": -1, "groupID": self.maxGID, "behavior": behaviors[j]}
+                self.people[self.maxPID] = {"age": ages[j], "gender": genders[j], "location": -1, \
+                                            "togetherWith":togetherWith, "groupID": self.maxGID, "behavior": behaviors[j]}
                 if (behaviors[j] == 'R'):
                     self.peopleR.add(self.maxPID)
                 else:
@@ -150,33 +153,6 @@ class Population:
         self.__createPairs(self.groupSizeDistribution[2])
         self.__createSize3Groups(self.groupSizeDistribution[3])
         self.__createSize4Groups(self.groupSizeDistribution[4])
-        
-    def printPopulation_old(self):
-        """Prints out the entire population"""
-        print()
-        print("Number of people: " + str(self.numPeople))
-        print("Number of groups: " + str(self.numGroups))
-        print("Group size distribution: " + str(self.groupSizeDistribution))
-        print()
-        print("People: ")
-        for pid in self.people.keys():
-            print(str(pid) + ": " + str(self.people[pid]))
-        print()
-        print("Groups:")
-        for gid in self.groups.keys():
-            print(str(gid) + ": " + str(self.groups[gid]))
-        print()
-        print("People evacuating:")
-        print(str(self.peopleE))
-        print()
-        print("People rendezvousing:")
-        print(str(self.peopleR))
-        print()
-        print("People exited:")
-        print(str(self.peopleX))
-        print()
-        print("People staying put:")
-        print(str(self.peopleS))
         
     def printPopulation(self):
         """Prints out the entire population"""
