@@ -3,6 +3,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import networkx as nx
+import matplotlib.pyplot as plt
 import RoadNetwork
 from Population import Population
 from RoadNetwork import RoadNetwork
@@ -25,8 +27,9 @@ class SimulationRunner:
         # self.logger.info("Initializing the simulation.")
         logger.info("Initializing the simulation")
         self.pop = Population(100)
+        print("Max group ID:", self.pop.maxGID)
         self.roads = RoadNetwork() 
-        self.roads.generateSmallWorldNetwork(100, 5, 0.1, 5)
+        self.roads.generateSmallWorldNetwork(100, 5, 0.1, 2)
         self.roads.saveNetworkToFile("roadNetwork.net")
         # self.behavior = Behavior()
         self.obs = Observers()
@@ -54,12 +57,50 @@ class SimulationRunner:
             self.pop.people[pid]["location"] = locs[r]
             self.pop.locations[locs[r]].add(pid)
             
-    def runSimulation(self):
+            
+    def __numExited(self):
+        e = 0
+        for loc in self.roads.exitNodeList:
+            if (loc in self.pop.locations):
+                e += len(self.pop.locations[loc])
+        return e
+    
+    def runSimulation(self, showVisualization, groupToTrack):
         """Update the simulation by one time step"""
         logger.info("Now starting the simulation.")
         
+        if showVisualization:
+            positions = nx.spring_layout(self.roads.R)
+        textvar = None
+        
+        print("Num exited:", self.__numExited())
         for i in range(self.maxTimeSteps):
             Behavior.runOneStep(self.pop, self.roads)
+            print("Num exited:", self.__numExited())
+            if showVisualization:
+                color_map = ['blue' for n in self.roads.R.nodes()]
+                labels_dict = {}
+                pidsToTrack = self.pop.groups[groupToTrack]
+                for pid in pidsToTrack:
+                    pidLoc = self.pop.people[pid]["location"]
+                    color_map[pidLoc] = 'red'
+                    if (pidLoc in labels_dict):
+                        labels_dict[pidLoc] += ","+str(pid)
+                    else:
+                        labels_dict[pidLoc] = str(pid)
+                for n in self.roads.exitNodeList:
+                    color_map[n] = 'yellow'
+
+                plt.figure(figsize=(7,7))
+                nx.draw(self.roads.R, pos = positions, node_color = color_map, labels = labels_dict)
+                if textvar:
+                    textvar.remove()
+                textvar=plt.figtext(0.99, 0.01, "t="+str(i), horizontalalignment='right')
+                plt.pause(1)
+                input("Press Enter to continue...")
+        
+        if (showVisualization):
+            plt.show()
         logger.info("Simulation done.")
 
             

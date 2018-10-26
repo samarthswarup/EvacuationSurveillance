@@ -5,7 +5,10 @@ logger = logging.getLogger('EvacuationSurveillance')
 
 from SimulationRunner import SimulationRunner
 
+SHOW_VIS = True
+GROUP_TO_TRACK = 17 # Make it None if SHOW_VIS = False
+
 logger.info('Starting simulation.')
 
-sr = SimulationRunner(2)
-sr.runSimulation()
+sr = SimulationRunner(10)
+sr.runSimulation(SHOW_VIS, GROUP_TO_TRACK)

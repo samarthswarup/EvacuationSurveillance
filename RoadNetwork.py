@@ -44,7 +44,7 @@ class RoadNetwork:
 
         
     def __generateExitNodes(self, e):
-        """Use reservoir sampling to choose 10 random nodes as exit nodes"""
+        """Use reservoir sampling to choose e random nodes as exit nodes"""
         logger.info("Marking " + str(e) + " nodes as exit nodes using reservoir sampling.")
         numExitNodes = e
         nodeNum = 0

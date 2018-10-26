@@ -24,24 +24,33 @@ class Behavior:
         updatedPeople = {}
         updatedLocations = {}
         for loc in pop.locations.keys():
-            while locations[loc]:
-                pid = locations[loc].pop()
+            while pop.locations[loc]:
+                pid = pop.locations[loc].pop()
                 state = pop.people[pid]
                 if (state["behavior"] == "E"):
                     newstate = cls.evacuation(pid, state, roads)
                     updatedPeople[pid] = newstate
                 elif (state["behavior"] == "R"):
                     newstate = cls.rendezvous(pid, state, roads, pop)
-                    pop.people[pid] = newstate
+                    updatedPeople[pid] = newstate
                 elif (state["behavior"] == "X"):
                     newstate = cls.exited(pid, state, roads)
-                    pop.people[pid] = newstate
+                    updatedPeople[pid] = newstate
                 elif (state["behavior"] == "S"):
                     newstate = cls.stay(pid, state, roads)
-                    pop.people[pid] = newstate
+                    updatedPeople[pid] = newstate
                 else:
                     print("Unknown behavior " + state["behavior"] + ", PID = " + str(pid))
         # Update locations dictionary
+        for pid in updatedPeople.keys():
+            loc = updatedPeople[pid]["location"]
+            if (loc in updatedLocations):
+                updatedLocations[loc].add(pid)
+            else:
+                updatedLocations[loc] = set()
+                updatedLocations[loc].add(pid)
+        pop.people = updatedPeople
+        pop.locations = updatedLocations
                 
     @classmethod
     def updateTogetherWith(cls, pop):
@@ -50,10 +59,12 @@ class Behavior:
         logger.debug("Updating togetherWith for all agents")
         for pid in pop.people.keys():
             state = pop.people[pid]
-            groupMembers = pop.groups[state["groupID"]]
-            for member in groupMembers:
-                if (state["location"]==pop.people[member]["location"]):
-                    state["togetherWith"].add(member)
+            gid = state["groupID"]
+            if gid != -1:
+                groupMembers = pop.groups[state["groupID"]]
+                for member in groupMembers:
+                    if (state["location"]==pop.people[member]["location"]):
+                        state["togetherWith"].add(member)
                 
     @classmethod
     def evacuation(cls, p, st, r):

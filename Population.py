@@ -45,7 +45,6 @@ class Population:
             self.maxPID += 1
             self.people[self.maxPID] = {"age": age, "gender": gender, "location": location, \
                                         "togetherWith": None, "groupID": groupID, "behavior": behavior}
-            self.peopleE.add(self.maxPID)
             self.numPeople += 1
         logger.info("Created " + str(n) + " individuals.")
             
@@ -64,7 +63,6 @@ class Population:
                 self.maxPID += 1
                 self.people[self.maxPID] = {"age": ages[j], "gender": genders[j], "location": -1, \
                                             "togetherWith":togetherWith, "groupID": self.maxGID, "behavior": 'R'}
-                self.peopleR.add(self.maxPID)
                 groupSet.add(self.maxPID)
                 self.numPeople += 1
             self.numGroups += 1
@@ -95,10 +93,6 @@ class Population:
                 self.maxPID += 1
                 self.people[self.maxPID] = {"age": ages[j], "gender": genders[j], "location": -1, \
                                             "togetherWith":togetherWith, "groupID": self.maxGID, "behavior": behaviors[j]}
-                if (behaviors[j] == 'R'):
-                    self.peopleR.add(self.maxPID)
-                else:
-                    self.peopleS.add(self.maxPID)
                 groupSet.add(self.maxPID)
                 self.numPeople += 1
             self.numGroups += 1
@@ -136,10 +130,6 @@ class Population:
                 self.maxPID += 1
                 self.people[self.maxPID] = {"age": ages[j], "gender": genders[j], "location": -1, \
                                             "togetherWith":togetherWith, "groupID": self.maxGID, "behavior": behaviors[j]}
-                if (behaviors[j] == 'R'):
-                    self.peopleR.add(self.maxPID)
-                else:
-                    self.peopleS.add(self.maxPID)
                 groupSet.add(self.maxPID)
                 self.numPeople += 1
             self.numGroups += 1
