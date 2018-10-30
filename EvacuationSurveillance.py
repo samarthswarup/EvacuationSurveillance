@@ -10,5 +10,5 @@ GROUP_TO_TRACK = 17 # Make it None if SHOW_VIS = False
 
 logger.info('Starting simulation.')
 
-sr = SimulationRunner(10)
+sr = SimulationRunner(20)
 sr.runSimulation(SHOW_VIS, GROUP_TO_TRACK)

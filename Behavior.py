@@ -1,6 +1,9 @@
 import logging
+import copy
+import random
 
 logger = logging.getLogger(__name__)
+DO_NOTHING_PROBABILITY = 0.1
 
 class Behavior:
     """The Behavior class does the following:
@@ -19,10 +22,11 @@ class Behavior:
     def runOneStep(cls, pop, roads):
         """Update the state of each person, location by location, by one time step"""
         logger.debug("Updating one step of the simulation")
+        
         # Update who is traveling together with whom (i.e., which agents have rendezvoused)
         cls.updateTogetherWith(pop)
+        
         updatedPeople = {}
-        updatedLocations = {}
         for loc in pop.locations.keys():
             while pop.locations[loc]:
                 pid = pop.locations[loc].pop()
@@ -41,7 +45,20 @@ class Behavior:
                     updatedPeople[pid] = newstate
                 else:
                     print("Unknown behavior " + state["behavior"] + ", PID = " + str(pid))
+                
+                #Get the group members at the same location and update their behavior
+                #and location to match the current pid's location and behavior
+                if (updatedPeople[pid]["togetherWith"]):
+                    for member in updatedPeople[pid]["togetherWith"]:
+                        newstate = copy.deepcopy(pop.people[member])
+                        newstate["location"] = updatedPeople[pid]["location"]
+                        newstate["behavior"] = updatedPeople[pid]["behavior"]
+                        pop.locations[loc].remove(member)
+                        updatedPeople[member] = newstate
+                    
+        
         # Update locations dictionary
+        updatedLocations = {}
         for pid in updatedPeople.keys():
             loc = updatedPeople[pid]["location"]
             if (loc in updatedLocations):
@@ -49,6 +66,7 @@ class Behavior:
             else:
                 updatedLocations[loc] = set()
                 updatedLocations[loc].add(pid)
+                
         pop.people = updatedPeople
         pop.locations = updatedLocations
                 
@@ -61,27 +79,40 @@ class Behavior:
             state = pop.people[pid]
             gid = state["groupID"]
             if gid != -1:
-                groupMembers = pop.groups[state["groupID"]]
+                if pop.people[pid]["togetherWith"]:
+                    pop.people[pid]["togetherWith"].clear()
+                else:
+                    pop.people[pid]["togetherWith"] = set()
+                groupMembers = pop.groups[gid]
                 for member in groupMembers:
-                    if (state["location"]==pop.people[member]["location"]):
-                        state["togetherWith"].add(member)
+                    if (state["location"]==pop.people[member]["location"] and member != pid):
+                        pop.people[pid]["togetherWith"].add(member)
                 
     @classmethod
     def evacuation(cls, p, st, r):
         """Evacuation behavior implementation"""
+        
+        if (random.random() < DO_NOTHING_PROBABILITY):
+            return st
+        
         currentLoc = st["location"]
         if (currentLoc in r.exitNodeList):
             return st
         nextLoc = r.shortestPaths[currentLoc][1]
-        st["location"] = nextLoc
-        return st
+        nextSt = copy.deepcopy(st)
+        nextSt["location"] = nextLoc
+        return nextSt
     
     @classmethod
     def rendezvous(cls, p, st, r, pop):
         """Rendezvous behavior implementation"""
         if (st["location"] in r.exitNodeList):
             return st
+        
+        if (random.random() < DO_NOTHING_PROBABILITY):
+            return st
 
+        nextSt = copy.deepcopy(st)
         gid = st["groupID"]
         
         #Get PIDs of all group members
@@ -101,8 +132,8 @@ class Behavior:
         #If groupLocs is empty, all group members are at the same location
         #Change behavior to E
         if not groupLocs:
-            st["behavior"] = "E"
-            return st
+            nextSt["behavior"] = "E"
+            return nextSt
         
         #Otherwise, move one step closer to the closest group member at
         #a different location
@@ -115,8 +146,8 @@ class Behavior:
                 closestLoc = loc
         
         shortestPath = r.getShortestPath(st["location"], closestLoc)
-        st["location"] = shortestPath[1]
-        return st
+        nextSt["location"] = shortestPath[1]
+        return nextSt
     
     @classmethod
     def exited(cls, p, st, r):

@@ -28,9 +28,11 @@ class SimulationRunner:
         logger.info("Initializing the simulation")
         self.pop = Population(100)
         print("Max group ID:", self.pop.maxGID)
-        self.roads = RoadNetwork() 
-        self.roads.generateSmallWorldNetwork(100, 5, 0.1, 2)
-        self.roads.saveNetworkToFile("roadNetwork.net")
+        self.roads = RoadNetwork()
+        self.roads.generateSpatialNetwork(100, 4, 2)
+        # self.roads.generateSmallWorldNetwork(100, 5, 0.1, 2)
+        self.roads.saveNetworkToFile("roadNetworkSpatial.gml")
+        # self.roads.saveNetworkToFile("roadNetworkSmallWorld.gml")
         # self.behavior = Behavior()
         self.obs = Observers()
         
@@ -70,7 +72,10 @@ class SimulationRunner:
         logger.info("Now starting the simulation.")
         
         if showVisualization:
-            positions = nx.spring_layout(self.roads.R)
+            positions = nx.get_node_attributes(self.roads.R ,'pos')
+            if not positions:
+                positions = nx.spring_layout(self.roads.R)
+            plt.figure(figsize=(7,7))
         textvar = None
         
         print("Num exited:", self.__numExited())
@@ -82,6 +87,7 @@ class SimulationRunner:
                 labels_dict = {}
                 pidsToTrack = self.pop.groups[groupToTrack]
                 for pid in pidsToTrack:
+                    # print("PID:", pid, "Properties:", self.pop.people[pid])
                     pidLoc = self.pop.people[pid]["location"]
                     color_map[pidLoc] = 'red'
                     if (pidLoc in labels_dict):
@@ -91,13 +97,11 @@ class SimulationRunner:
                 for n in self.roads.exitNodeList:
                     color_map[n] = 'yellow'
 
-                plt.figure(figsize=(7,7))
+                plt.clf()
                 nx.draw(self.roads.R, pos = positions, node_color = color_map, labels = labels_dict)
-                if textvar:
-                    textvar.remove()
                 textvar=plt.figtext(0.99, 0.01, "t="+str(i), horizontalalignment='right')
                 plt.pause(1)
-                input("Press Enter to continue...")
+                # input("Press Enter to continue...")
         
         if (showVisualization):
             plt.show()

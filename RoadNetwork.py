@@ -1,6 +1,8 @@
 import networkx as nx
 import logging
 import random
+from sklearn.neighbors import NearestNeighbors
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +13,7 @@ class RoadNetwork:
     
     def __init__(self, filename=None):
         """RoadNetwork constructor."""
-        self.R = nx.Graph()
+        # self.R = nx.Graph()
         self.exitNodeList = []
         self.shortestPaths = {}
         if (filename is not None):
@@ -20,6 +22,31 @@ class RoadNetwork:
     def die(self):
         """RaodNetwork destructor."""
         pass
+        
+    def generateSpatialNetwork(self, n, k, e):
+        """Generate a spatially-embedded road network by choosing n
+        random points in a 100x100 square and connecting each point
+        to its k nearest neighbors. e exit nodes are chosen randomly."""
+        logger.info("Generating a spatial network with", n, "nodes,", k,\
+                    "neighbors for each node, and", e, "exit nodes.")
+        
+        self.R = nx.Graph()
+        for i in range(n):
+            self.R.add_node(i)
+            self.R.nodes[i]['pos'] = [random.random()*100, random.random()*100]
+
+        coords = [self.R.nodes[n]['pos'] for n in self.R.nodes()]
+        coords_np = np.array(coords)
+        nbrs = NearestNeighbors(n_neighbors=k+1, algorithm='ball_tree').fit(coords_np)
+        distances, indices = nbrs.kneighbors(coords_np)
+        
+        for nodelist in indices:
+            for i in range(1,k+1):
+                self.R.add_edge(nodelist[0], nodelist[i])
+                
+        self.__generateExitNodes(e)
+        self.__calculateShortestPaths()
+
         
     def generateSmallWorldNetwork(self, n, k, p, e):
         """Generate a small world road network with the given parameters:
@@ -39,7 +66,7 @@ class RoadNetwork:
     def saveNetworkToFile(self, filename):
         """Saves the road network to the given file"""
         # nx.write_edgelist(self.R, filename, data=True)
-        nx.write_pajek(self.R, filename)
+        nx.write_gml(self.R, filename)
         logger.info("Saved the road network to file " + filename)
 
         
