@@ -27,8 +27,8 @@ class RoadNetwork:
         """Generate a spatially-embedded road network by choosing n
         random points in a 100x100 square and connecting each point
         to its k nearest neighbors. e exit nodes are chosen randomly."""
-        logger.info("Generating a spatial network with", n, "nodes,", k,\
-                    "neighbors for each node, and", e, "exit nodes.")
+        logger.info("Generating a spatial network with " + str(n) + " nodes, " + str(k) +\
+                    " neighbors for each node, and " + str(e) + " exit nodes.")
         
         self.R = nx.Graph()
         for i in range(n):
