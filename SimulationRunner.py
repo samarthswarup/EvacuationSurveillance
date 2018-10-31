@@ -67,7 +67,34 @@ class SimulationRunner:
                 e += len(self.pop.locations[loc])
         return e
     
-    def runSimulation(self, showVisualization, groupToTrack):
+    def writeLocations(self, fileHandle, timeStep):
+        if (timeStep==0):
+            fileHandle.write("time_step")
+            for pid in sorted(self.pop.people.keys()):
+                fileHandle.write(",agent_" + str(pid))
+            fileHandle.write("\n")
+            return
+        
+        fileHandle.write(str(timeStep))
+        for pid in sorted(self.pop.people.keys()):
+            fileHandle.write(","+str(self.pop.people[pid]["location"]))
+        fileHandle.write("\n")
+    
+    def writeBehaviors(self, fileHandle, timeStep):
+        if (timeStep==0):
+            fileHandle.write("time_step")
+            for pid in sorted(self.pop.people.keys()):
+                fileHandle.write(",agent_" + str(pid))
+            fileHandle.write("\n")
+            return
+        
+        fileHandle.write(str(timeStep))
+        for pid in sorted(self.pop.people.keys()):
+            fileHandle.write(","+self.pop.people[pid]["behavior"])
+        fileHandle.write("\n")
+        pass
+    
+    def runSimulation(self, showVisualization, groupToTrack, locationOutputFile, behaviorOutputFile):
         """Update the simulation by one time step"""
         logger.info("Now starting the simulation.")
         
@@ -78,9 +105,24 @@ class SimulationRunner:
             plt.figure(figsize=(7,7))
         textvar = None
         
+        if locationOutputFile:
+            locFile = open(locationOutputFile, "w")
+            self.writeLocations(locFile, 0)
+            
+        if behaviorOutputFile:
+            behFile = open(behaviorOutputFile, "w")
+            self.writeBehaviors(behFile, 0)
+        
         print("Num exited:", self.__numExited())
         for i in range(self.maxTimeSteps):
             Behavior.runOneStep(self.pop, self.roads)
+            
+            if (locationOutputFile):
+                self.writeLocations(locFile, i)
+                
+            if (behaviorOutputFile):
+                self.writeBehaviors(behFile, i)
+            
             print("Num exited:", self.__numExited())
             if showVisualization:
                 color_map = ['blue' for n in self.roads.R.nodes()]
