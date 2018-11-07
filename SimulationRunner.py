@@ -67,13 +67,26 @@ class SimulationRunner:
                 e += len(self.pop.locations[loc])
         return e
     
-    def writeLocations(self, fileHandle, timeStep):
+    def writeSpatialLocations(self, fileHandle, timeStep):
+        if (timeStep==0):
+            fileHandle.write("time_step")
+            for pid in sorted(self.pop.people.keys()):
+                fileHandle.write(",x_" + str(pid) + ",y_" + str(pid))
+            fileHandle.write("\n")
+            
+        fileHandle.write(str(timeStep))
+        for pid in sorted(self.pop.people.keys()):
+            x = self.roads.R.nodes[self.pop.people[pid]["location"]]["pos"][0]
+            y = self.roads.R.nodes[self.pop.people[pid]["location"]]["pos"][1]
+            fileHandle.write("," + str(x) + "," + str(y))
+        fileHandle.write("\n")
+    
+    def writeGraphLocations(self, fileHandle, timeStep):
         if (timeStep==0):
             fileHandle.write("time_step")
             for pid in sorted(self.pop.people.keys()):
                 fileHandle.write(",agent_" + str(pid))
             fileHandle.write("\n")
-            return
         
         fileHandle.write(str(timeStep))
         for pid in sorted(self.pop.people.keys()):
@@ -86,7 +99,6 @@ class SimulationRunner:
             for pid in sorted(self.pop.people.keys()):
                 fileHandle.write(",agent_" + str(pid))
             fileHandle.write("\n")
-            return
         
         fileHandle.write(str(timeStep))
         for pid in sorted(self.pop.people.keys()):
@@ -94,7 +106,7 @@ class SimulationRunner:
         fileHandle.write("\n")
         pass
     
-    def runSimulation(self, showVisualization, groupToTrack, locationOutputFile, behaviorOutputFile):
+    def runSimulation(self, showVisualization, groupToTrack, spatialLocationOutputFile, graphLocationOutputFile, behaviorOutputFile):
         """Update the simulation by one time step"""
         logger.info("Now starting the simulation.")
         
@@ -105,9 +117,13 @@ class SimulationRunner:
             plt.figure(figsize=(7,7))
         textvar = None
         
-        if locationOutputFile:
-            locFile = open(locationOutputFile, "w")
-            self.writeLocations(locFile, 0)
+        if spatialLocationOutputFile:
+            spatialLocFile = open(spatialLocationOutputFile, "w")
+            self.writeSpatialLocations(spatialLocFile, 0)
+        
+        if graphLocationOutputFile:
+            graphLocFile = open(graphLocationOutputFile, "w")
+            self.writeGraphLocations(graphLocFile, 0)
             
         if behaviorOutputFile:
             behFile = open(behaviorOutputFile, "w")
@@ -117,11 +133,14 @@ class SimulationRunner:
         for i in range(self.maxTimeSteps):
             Behavior.runOneStep(self.pop, self.roads)
             
-            if (locationOutputFile):
-                self.writeLocations(locFile, i)
+            if (spatialLocationOutputFile):
+                self.writeSpatialLocations(spatialLocFile, i+1)
+            
+            if (graphLocationOutputFile):
+                self.writeGraphLocations(graphLocFile, i+1)
                 
             if (behaviorOutputFile):
-                self.writeBehaviors(behFile, i)
+                self.writeBehaviors(behFile, i+1)
             
             print("Num exited:", self.__numExited())
             if showVisualization:
