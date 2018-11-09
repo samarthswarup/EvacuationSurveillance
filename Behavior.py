@@ -106,9 +106,7 @@ class Behavior:
     @classmethod
     def rendezvous(cls, p, st, r, pop):
         """Rendezvous behavior implementation"""
-        if (st["location"] in r.exitNodeList):
-            return st
-        
+
         if (random.random() < DO_NOTHING_PROBABILITY):
             return st
 

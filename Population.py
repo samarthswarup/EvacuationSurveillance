@@ -144,23 +144,29 @@ class Population:
         self.__createSize3Groups(self.groupSizeDistribution[3])
         self.__createSize4Groups(self.groupSizeDistribution[4])
         
-    def printPopulation(self):
-        """Prints out the entire population"""
-        print()
-        print("Number of people: " + str(self.numPeople))
-        print("Number of groups: " + str(self.numGroups))
-        print("Group size distribution: " + str(self.groupSizeDistribution))
-        print()
-        print("People: ")
+    def savePopulationToFile(self, filename):
+        """Saves the entire population to the given file"""
+        popFile = open(filename, "w")
+
+        popFile.write("Number of people: " + str(self.numPeople)+"\n")
+        popFile.write("Number of groups: " + str(self.numGroups)+"\n")
+        popFile.write("Group size distribution: " + str(self.groupSizeDistribution)+"\n")
+        popFile.write("\n")
+        popFile.write("People: \n")
         for pid in self.people.keys():
-            print(str(pid) + ": " + str(self.people[pid]))
-        print()
-        print("Groups:")
+            popFile.write(str(pid) + ": " + str(self.people[pid]).replace('set()', '{}')+"\n")
+        popFile.write("\n")
+        popFile.write("Groups:\n")
         for gid in self.groups.keys():
-            print(str(gid) + ": " + str(self.groups[gid]))
-        print("Locations:")
+            popFile.write(str(gid) + ": " + str(self.groups[gid])+"\n")
+        popFile.write("\n")
+        popFile.write("Locations:\n")
         for loc in self.locations.keys():
-            print(str(loc) + ": " + str(self.locations[loc]))
+            if (self.locations[loc] == set()):
+                popFile.write(str(loc) + ": {}\n")
+            else:
+                popFile.write(str(loc) + ": " + str(self.locations[loc])+"\n")
+        popFile.close()
         
 
 

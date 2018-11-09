@@ -21,7 +21,7 @@ class SimulationRunner:
      Creates the Estimator
      Runs the simulation and the Estimator"""
     
-    def __init__(self, maxTimeSteps):
+    def __init__(self, maxTimeSteps, runNumber):
         """SimulationRunner constructor."""
         # self.logger = logging.getLogger(__name__ + '.SimulationRunner')
         # self.logger.info("Initializing the simulation.")
@@ -31,7 +31,7 @@ class SimulationRunner:
         self.roads = RoadNetwork()
         self.roads.generateSpatialNetwork(100, 4, 2)
         # self.roads.generateSmallWorldNetwork(100, 5, 0.1, 2)
-        self.roads.saveNetworkToFile("roadNetworkSpatial.gml")
+        self.roads.saveNetworkToFile("roadNetworkSpatial_" + str(runNumber) + ".gml")
         # self.roads.saveNetworkToFile("roadNetworkSmallWorld.gml")
         # self.behavior = Behavior()
         self.obs = Observers()
@@ -42,6 +42,7 @@ class SimulationRunner:
         self.maxTimeSteps = maxTimeSteps
         
         self.__setInitialLocations()
+        self.pop.savePopulationToFile('population_' + str(runNumber) + '.txt')
         
     def die(self):
         """SimulationRunner destructor."""
