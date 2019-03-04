@@ -21,17 +21,17 @@ class SimulationRunner:
      Creates the Estimator
      Runs the simulation and the Estimator"""
     
-    def __init__(self, maxTimeSteps, runNumber):
+    def __init__(self, maxTimeSteps, runNumber, filePath):
         """SimulationRunner constructor."""
         # self.logger = logging.getLogger(__name__ + '.SimulationRunner')
         # self.logger.info("Initializing the simulation.")
         logger.info("Initializing the simulation")
-        self.pop = Population(100)
+        self.pop = Population(2000)
         print("Max group ID:", self.pop.maxGID)
         self.roads = RoadNetwork()
         self.roads.generateSpatialNetwork(100, 4, 2)
         # self.roads.generateSmallWorldNetwork(100, 5, 0.1, 2)
-        self.roads.saveNetworkToFile("roadNetworkSpatial_" + str(runNumber) + ".gml")
+        self.roads.saveNetworkToFile(filePath + "roadNetworkSpatial_" + str(runNumber) + ".gml")
         # self.roads.saveNetworkToFile("roadNetworkSmallWorld.gml")
         # self.behavior = Behavior()
         self.obs = Observers()
@@ -42,7 +42,7 @@ class SimulationRunner:
         self.maxTimeSteps = maxTimeSteps
         
         self.__setInitialLocations()
-        self.pop.savePopulationToFile('population_' + str(runNumber) + '.txt')
+        self.pop.savePopulationToFile(filePath + 'population_' + str(runNumber) + '.txt')
         
     def die(self):
         """SimulationRunner destructor."""
@@ -147,15 +147,16 @@ class SimulationRunner:
             if showVisualization:
                 color_map = ['blue' for n in self.roads.R.nodes()]
                 labels_dict = {}
-                pidsToTrack = self.pop.groups[groupToTrack]
-                for pid in pidsToTrack:
-                    # print("PID:", pid, "Properties:", self.pop.people[pid])
-                    pidLoc = self.pop.people[pid]["location"]
-                    color_map[pidLoc] = 'red'
-                    if (pidLoc in labels_dict):
-                        labels_dict[pidLoc] += ","+str(pid)
-                    else:
-                        labels_dict[pidLoc] = str(pid)
+                if (groupToTrack is not None):
+                    pidsToTrack = self.pop.groups[groupToTrack]
+                    for pid in pidsToTrack:
+                        # print("PID:", pid, "Properties:", self.pop.people[pid])
+                        pidLoc = self.pop.people[pid]["location"]
+                        color_map[pidLoc] = 'red'
+                        if (pidLoc in labels_dict):
+                            labels_dict[pidLoc] += ","+str(pid)
+                        else:
+                            labels_dict[pidLoc] = str(pid)
                 for n in self.roads.exitNodeList:
                     color_map[n] = 'yellow'
 
