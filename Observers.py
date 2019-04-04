@@ -21,7 +21,7 @@ class Observers:
         """Observers destructor."""
         pass
 
-    def generateSensorNodes(self, roads, n, forceExit):
+    def generateSensorNodes(self, roads, n, forceExit, forceRendezvous):
         # n is number of Sensor Nodes
         # m is max number of Nodes in Graph
         logger.debug("Generating a list of " + str(n) + " sensor nodes.")
@@ -40,13 +40,22 @@ class Observers:
                 self.sensorNodeList[replace] = i
             nodeNum += 1
 
+        replace = 0
         if (forceExit):
-            replace = 0
             exitList = roads.exitNodeList
             for i in exitList:
                 if i in self.sensorNodeList:
                     continue
                 while self.sensorNodeList[replace] in exitList:
+                    replace += 1
+                self.sensorNodeList[replace] = i
+                replace += 1
+        if (forceRendezvous):
+            rendezvousList = roads.rendezvousNodeList
+            for i in rendezvousList:
+                if i in self.sensorNodeList:
+                    continue
+                while self.sensorNodeList[replace] in rendezvousList:
                     replace += 1
                 self.sensorNodeList[replace] = i
                 replace += 1

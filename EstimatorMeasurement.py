@@ -1,5 +1,6 @@
 import random
 import logging
+import sys
 import numpy as np
 import scipy.stats as stats
 
@@ -27,17 +28,14 @@ class EstimatorMeasurement:
         """ Build probability table of likelihood of each particle being at any given node """
         q_flat_loc = cls.buildProbabilityTable(estm, obs, DistMatrix)
 
-        [cMat, zHatNext, alphaHatNext] = cls.initializeCV(estm, obs, roads, cMat, zHatNext, alphaHatNext, q_flat_loc, Pb)
-        [cMat, zHatNext, alphaHatNext] = cls.MHresample(estm, obs, cMat, zHatNext, alphaHatNext, q_flat_loc, Pb)
+        [cMat, zHatNext, alphaHatNext] = cls.initializeCV(estm, obs, roads, cMat, \
+            zHatNext, alphaHatNext, q_flat_loc, Pb)
+        [cMat, zHatNext, alphaHatNext] = cls.MHresample(estm, obs, cMat, zHatNext, \
+            alphaHatNext, q_flat_loc, Pb)
 
         estm.zHat = np.reshape(zHatNext,estm.numParts*estm.numAgents,1).astype(int).tolist()
         estm.alphaHat = np.reshape(alphaHatNext,estm.numParts*estm.numAgents,1).tolist()
-        curr_part = 0
-        for agent in estm.estimator_pop:
-            for particle in agent:
-                particle["location"] = estm.zHat[curr_part]
-                particle["alpha"] = estm.alphaHat[curr_part]
-                curr_part += 1
+        cls.updatePartData(estm)
 
     @classmethod
     def buildProbabilityTable(cls, estm, obs, DistMatrix):
@@ -65,20 +63,20 @@ class EstimatorMeasurement:
     @classmethod
     def initializeCV(cls, estm, obs, roads, cMat, zHatNext, alphaHatNext, q_flat_loc, Pb):
         """ Run initialization of correspondance vectors & populate data structures """
-        for n in range(estm.numParts):
+        for n in range(estm.numcVec):
             """Determine order in which sensor observations will be matched to agents"""
             randAssocList = cls.associationOrder(estm, obs, Pb)
             """Now perform associations in randomized order specified by RANDASSOCLIST"""
-            [assocAgentList, cVec, flat_Id] = \
+            [assocAgentList, cVec, partIdVec_flat] = \
                 cls.associateAgents(estm, obs, q_flat_loc, randAssocList)
             """For each remaining unassociated agent, sample a particle"""
-            [cVec, flat_Id] = cls.unassociatedPartSamp(estm, obs, roads, \
-                q_flat_loc, assocAgentList, cVec, flat_Id)
+            [cVec, partIdVec_flat] = cls.unassociatedPartSamp(estm, obs, roads, \
+                q_flat_loc, assocAgentList, cVec, partIdVec_flat)
 
             """Store data"""
             cMat[n,:] = cVec
-            zHatNext[n,:] = np.array(estm.zHat)[flat_Id.astype(int)]
-            alphaHatNext[n,:] = np.array(estm.alphaHat)[flat_Id.astype(int)]
+            zHatNext[n,:] = np.array(estm.zHat)[partIdVec_flat.astype(int)]
+            alphaHatNext[n,:] = np.array(estm.alphaHat)[partIdVec_flat.astype(int)]
             alphaHatNext[n,assocAgentList] = float(10)
 
         return [cMat, zHatNext, alphaHatNext]
@@ -87,12 +85,11 @@ class EstimatorMeasurement:
     def MHresample(cls, estm, obs, cMat, zHatNext, alphaHatNext, q_flat_loc, Pb):            
         """ Metropolis-Hastings resampling of correspondance vectors """
         reassocP = 0.99
-        mistakenIdP = 1-reassocP
         numBurn = 20
         for n in range(estm.numcVec + numBurn):
             """Select a candidate correspondence vector to replace sample with 
             uniform probability across all correspondence vectors"""
-            cvId = cls.randSamp(np.divide(np.arange(0,estm.numcVec),float(estm.numcVec)))
+            cvId = cls.randSamp(np.divide(np.arange(0,estm.numcVec),float(estm.numcVec)),1)
             cVecCand = cMat[cvId,:]
             zVecCand = zHatNext[cvId,:]
             alphaVecCand = alphaHatNext[cvId,:]
@@ -115,25 +112,23 @@ class EstimatorMeasurement:
     @classmethod
     def associationOrder(cls, estm, obs, Pb):
         """Determine order in which particles are matched to sensors."""
-        randomizedCnt = np.zeros(len(obs.sensorCount))
+        randomizedCnt = np.multiply(-1,np.ones(len(obs.sensorCount)))
         """Use a binary PDF to create an estimated number of agents at each sensor
         location (given that the measure may be inaccurate due to sensor noise)"""
         for i in range(len(obs.sensorCount)):
             meas = obs.sensorCount[i]
             estRng = np.arange(meas,2*meas+2)
-            likelihoodRng = stats.norm.pdf(meas,estRng,Pb)
-            index = int(estRng[cls.randSamp(likelihoodRng)])
-            if (index >= len(estRng)):
-                index = len(estRng) - 1
+            likelihoodRng = stats.binom.pmf(meas,estRng,Pb)
+            index = cls.randSamp(likelihoodRng,2)
             randomizedCnt[i] = int(estRng[index])
 
         """Randomly permute the order of the sensor associations"""
         orderedAssocList = []
         for n in range(len(obs.sensorCount)):
             for i in range(int(randomizedCnt[n])):
-                orderedAssocList.append(n+1)
+                orderedAssocList.append(n)
 
-        estm.numAssoc = int(np.sum(randomizedCnt))
+        estm.numAssoc = len(orderedAssocList)
         estm.numAssoc = min(estm.numAssoc,estm.numAgents)
 
         randAssocList = np.random.permutation(orderedAssocList)
@@ -143,42 +138,43 @@ class EstimatorMeasurement:
     @classmethod
     def associateAgents(cls, estm, obs, q_flat_loc, randAssocList):
         """Begin to populate a correspondence vector cvec and an associated particle 
-        designation vector flat_Id. Also output a list of all agent IDs for 
+        designation vector partIdVec_flat. Also output a list of all agent IDs for 
         associated agents"""
 
         """Extract likelihoods for sensor nodes"""
         q_sense = q_flat_loc[:,np.array(obs.sensorNodeList)]
+
         """ Initialize outputs """
-        cVec = np.multiply(-1,np.ones(estm.numAgents))
-        flat_Id = np.zeros(estm.numAgents)
-        assocAgentList = np.zeros(estm.numAgents)
-        assocPartVec_flat = np.zeros(estm.numAgents*estm.numParts)
+        cVec = np.multiply(-2,np.ones(estm.numAgents)) # -2 means empty, -1 means unassociate, integer corresponds to sensor
+        partIdVec_flat = np.multiply(-1,np.ones(estm.numAgents))
+        assocAgentVec = np.multiply(-1,np.ones(estm.numAgents))
+        assocPartVec_flat = np.multiply(-1,np.ones(estm.numAgents*estm.numParts))
 
         """Perform associations in order of randAssocList"""
         for n in range(estm.numAssoc):
-            sensorId = randAssocList[n]-1
+            sensorId = randAssocList[n]
             """Extract particle index (flat) for particles not yet associated"""
-            unassocFlatInd = np.where(assocPartVec_flat == 0)[0]
+            unassocFlatInd = np.where(assocPartVec_flat == -1)[0]
             q_cond = q_sense[unassocFlatInd,sensorId]
-            unassocIndx = cls.randSamp(q_cond)
+            unassocIndx = cls.randSamp(q_cond,3)
             sampledFlatIndx = unassocFlatInd[unassocIndx]
             sampledAgentIndx = estm.agentId[sampledFlatIndx]
 
             """Store data"""
             cVec[sampledAgentIndx] = sensorId
-            flat_Id[sampledAgentIndx] = sampledFlatIndx
-            assocAgentList[sampledAgentIndx] = 1;
-            PartVecIndx = np.linspace(estm.numParts*(sampledAgentIndx-1)+1, \
-                estm.numParts*sampledAgentIndx,estm.numParts)
-            PartVecIndx = PartVecIndx.astype(int)
+            partIdVec_flat[sampledAgentIndx] = sampledFlatIndx
+            assocAgentVec[sampledAgentIndx] = 1
+            PartVecIndx = np.arange(estm.numParts*(sampledAgentIndx-1), \
+                estm.numParts*sampledAgentIndx)
             assocPartVec_flat[PartVecIndx] = 1
 
-        assocAgentList = np.where(assocAgentList == 1)[0]
+        assocAgentList = np.where(assocAgentVec == 1)[0]
+        estm.numAssoc = len(assocAgentList)
 
-        return [assocAgentList, cVec, flat_Id]
+        return [assocAgentList, cVec, partIdVec_flat]
 
     @classmethod
-    def unassociatedPartSamp(cls,estm,obs,roads,q_flat_loc,assocAgentList,cVec,flat_Id):
+    def unassociatedPartSamp(cls,estm,obs,roads,q_flat_loc,assocAgentList,cVec,partIdVec_flat):
         """Complete the CVEC and the FLATIDVEC for all agents, by introducing random sampling
         to obtain a particle for all unassociated agents"""
 
@@ -195,18 +191,18 @@ class EstimatorMeasurement:
         """Cycle through all unassociated agents, randomly samplying a particle for each,
         where the PDF over particles is weighted by the probability that each particle
         falls at a non-sensor location"""
-        for i in range(numUnassocAgent-1):
+        for i in range(numUnassocAgent):
             ID = unassignedAgentList[i]
             agentRows = np.where(np.array(estm.agentId) == ID)[0]
             pMat = p_unAssoc[agentRows,:] # Rows are particles, columns are locations
             pVec = np.sum(pMat,1) # Sum over all locations to get total unassoc. prob. per particle
-            randPart = cls.randSamp(pVec)
+            randPart = cls.randSamp(pVec,4)
             flatInd = agentRows[randPart]
             """Store Data"""
-            cVec[ID] = 0
-            flat_Id[ID] = flatInd
+            cVec[ID] = -1 # -1 means unassociated with a sensor
+            partIdVec_flat[ID] = flatInd
 
-        return [cVec, flat_Id]
+        return [cVec, partIdVec_flat]
 
     @classmethod
     def reassociate(cls,estm,obs,cVecCand,zVecCand,alphaVecCand,q_flat_loc,Pb):
@@ -216,15 +212,12 @@ class EstimatorMeasurement:
 
         """Exclude agents from consideration that cannot be "flipped".  Do this 
         by comparing the candidate count to measured count"""
-        bins = np.arange(0,len(obs.sensorNodeList)+2)
+        bins = np.arange(0,len(obs.sensorNodeList)+1)
         histCand = np.histogram(cVecCand,bins)[0]
 
-        minAllowFlag = np.zeros(len(obs.sensorNodeList))
-        for i in range(len(obs.sensorNodeList)):
-            if (histCand[i+1] <= obs.sensorCount[i]):
-                minAllowFlag[i] = 1
+        minAllowFlag = histCand <= np.array(obs.sensorCount)
 
-        cannotFlipSensorId = np.where(minAllowFlag == 1)[0]
+        cannotFlipSensorId = np.where(minAllowFlag)[0]
         cannotFlipAgentId = np.array([])
         for i in range(len(cannotFlipSensorId)):
             sensorIdVec = np.where(cVecCand == cannotFlipSensorId[i])[0]
@@ -237,15 +230,12 @@ class EstimatorMeasurement:
 
         """Entry (agent) within candidate vector that will be re-associated, given that
         the re-association will be a flip."""
-        if (numAllow == 1):
-            agId = allowedFlipAgentId[0]
-        else:
-            sampledAgAllowedId = cls.randSamp(np.arange(0,numAllow))
-            agId = allowedFlipAgentId[sampledAgAllowedId]
+        sampledAgAllowedId = cls.randSamp(np.arange(0,numAllow),5)
+        agId = allowedFlipAgentId[sampledAgAllowedId]
 
         """Flip current association:  If not associated with a sensor, associate; if
         associated with a sensor, then disassociate."""
-        currUnassocFlag = (cVecCand[agId] == 0)
+        currUnassocFlag = (cVecCand[agId] == -1)
         flipNodeVector = np.zeros(estm.numNodes)
         flipNodeVector[obs.sensorNodeList] = 1
         allowedFlipIndx = np.where(flipNodeVector==currUnassocFlag)[0]
@@ -255,37 +245,34 @@ class EstimatorMeasurement:
         qMat = q_flat_loc[agRows,:]
         qMatFlip = qMat[:,allowedFlipIndx]
         wRows = np.sum(qMatFlip,1)
-        partInd = cls.randSamp(wRows)
+        partInd = cls.randSamp(wRows,6)
         wCols = qMatFlip[partInd,:]
-        nodeInd = allowedFlipIndx[cls.randSamp(wCols)]
+        nodeInd = allowedFlipIndx[cls.randSamp(wCols,7)]
 
         """New sensor index after reassociation"""
         sensorIndV = np.where(np.array(obs.sensorNodeList) == nodeInd)[0]
-        """If node is not a sensor node, assign sensor ID to zero (unassociated)"""
+        """If node is not a sensor node, assign sensor ID to -1 (unassociated)"""
+        oldSensorInd = int(cVecCand[agId])
         if len(sensorIndV) == 0:
-            sensorInd = 0
+            sensorInd = -1
         else:
             sensorInd = sensorIndV[0]
-        sensorInd = int(sensorInd)
-        oldSensorInd = int(cVecCand[agId])
-        cVecProp = cVecCand
+        cVecProp = list(cVecCand)
         cVecProp[agId] = sensorInd
 
         """Acceptance prob. ratio due to sensing"""
-        bins = np.arange(0,len(obs.sensorNodeList)+2)
         histCand = np.histogram(cVecCand,bins)[0]
         histProp = np.histogram(cVecProp,bins)[0]
-        histCand = histCand[np.arange(1,len(histCand))]
-        histProp = histProp[np.arange(1,len(histProp))]
-        pVecCandSense = stats.norm.pdf(obs.sensorCount,histCand,Pb)
-        pVecPropSense = stats.norm.pdf(obs.sensorCount,histProp,Pb)
+        pVecCandSense = stats.binom.pmf(obs.sensorCount,histCand,Pb)
+        pVecPropSense = stats.binom.pmf(obs.sensorCount,histProp,Pb)
         flippedSensorInd = max(sensorInd,oldSensorInd)
-        pRatioSense = pVecPropSense[flippedSensorInd]/pVecCandSense[flippedSensorInd] # some error on this line
+        """Add 1 to account for 0 sensor"""
+        pRatioSense = float(pVecPropSense[flippedSensorInd]+1)/float(pVecCandSense[flippedSensorInd]+1)
 
         """Acceptance prob. ratio due to prior"""
         nonSenseNodeList = np.setdiff1d(np.arange(0,estm.numNodes), \
             np.array(obs.sensorNodeList))
-        if oldSensorInd == 0:
+        if oldSensorInd == -1:
             senseLocCand = nonSenseNodeList
             senseLocProp = obs.sensorNodeList[sensorInd]
         else:
@@ -312,7 +299,7 @@ class EstimatorMeasurement:
             flatId = agRows[partInd]
             zVec[agId] = nodeInd
             alphaVec[agId] = estm.alphaHat[flatId]
-            if sensorInd > 0:
+            if sensorInd > -1:
                 alphaVec[agId] = 10
 
         return [cVec,zVec,alphaVec]
@@ -321,8 +308,9 @@ class EstimatorMeasurement:
     def mistakenIdentity(cls,estm,cVecCand,zVecCand,alphaVecCand):
         """Randomly select two agents and switch their associated mean and 
         distance-scaling entries. Acceptance probability is one."""
-        agId1 = cls.randSamp(np.divide(np.linspace(1,estm.numAgents,estm.numAgents),estm.numAgents))
-        agId2 = cls.randSamp(np.divide(np.linspace(1,estm.numAgents,estm.numAgents),estm.numAgents))
+        identityVec = np.divide(np.arange(0,estm.numAgents),float(estm.numAgents))
+        agId1 = cls.randSamp(identityVec,8)
+        agId2 = cls.randSamp(identityVec,9)
 
         """Switch particles for two candidates"""
         cVec = cVecCand
@@ -338,10 +326,10 @@ class EstimatorMeasurement:
         return [cVec,zVec,alphaVec]
 
     @classmethod
-    def randSamp(cls, weightVec):
+    def randSamp(cls, weightVec, locnum):
         weightVecSum = float(np.sum(weightVec))
         if weightVecSum < 1e-30:
-            print('weight vector is empty')
+            print('weight vector is empty | call from loc #' + str(locnum))
             weightVecLength = len(weightVec)
             weightVecNorm = np.divide(np.ones(weightVecLength),float(weightVecLength))
         else:
@@ -351,3 +339,14 @@ class EstimatorMeasurement:
         indices = np.where(cumWeight >= randVal)[0]
 
         return int(np.min(indices))
+
+    @classmethod
+    def updatePartData(cls, estm):
+        """ Updates estimator location and alpha vectors """
+        curr_part = 0
+        for agent in estm.estimator_pop:
+            for particle in agent:
+                particle["location"] = estm.zHat[curr_part]
+                particle["alpha"] = estm.alphaHat[curr_part]
+                particle["behavior"] = estm.bHat[curr_part]
+                curr_part += 1

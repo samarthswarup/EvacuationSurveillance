@@ -55,18 +55,18 @@ class EstimatorBehavior:
         return P_transition
 
     @classmethod   
-    def estimator_wait(cls, p, st, r, pop, P_t):
+    def estimator_wait(cls, p, st, r, pop, P_tr):
         """ Uses a probability to determine whether a given particle
         will continue to wait at a rendezvous node"""
-        P_0 = 0.01
-        P_t = (1-P_0)*P_t + P_0
+        P_0 = 0.2
+        P_tr = (1-P_0)*P_tr + P_0
 
-        if (random.random() <= P_t):
+        if (random.random() <= P_tr):
             nextSt = copy.deepcopy(st)
             nextSt["behavior"] = "E"
-            return [nextSt, P_t]
+            return [nextSt, P_tr]
 
-        return [st, P_t]
+        return [st, P_tr]
 
     @classmethod
     def updateHatVec(cls, estm):
@@ -76,4 +76,5 @@ class EstimatorBehavior:
             for particle in agent:
                 estm.zHat[curr_part] = particle["location"]
                 estm.alphaHat[curr_part] = particle["alpha"]
+                estm.bHat[curr_part] = particle["behavior"]
                 curr_part += 1

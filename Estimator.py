@@ -22,6 +22,7 @@ class Estimator:
         self.agentId = []
         self.zHat = []
         self.alphaHat = []
+        self.bHat = []
 
         self.numAgents = -1
         self.numParts = -1
@@ -58,8 +59,9 @@ class Estimator:
                 r = random.randrange(numLocs)
                 particle["location"] = r
                 particle["alpha"] = m
-                self.zHat.append(r)
-                self.alphaHat.append(m)
+                self.zHat.append(particle["location"])
+                self.alphaHat.append(particle["alpha"])
+                self.bHat.append(particle["behavior"])
 
     def saveEstimatorFile(self, filename):
         """Saves the entire estimator population to the given file"""

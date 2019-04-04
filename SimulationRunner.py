@@ -34,7 +34,9 @@ class SimulationRunner:
         self.roads.saveNetworkToFile(filePath + "roadNetworkSpatial_" + str(runNumber) + ".gml")
 
         self.obs = Observers()
-        self.obs.generateSensorNodes(self.roads,8,False)
+        forceExit = False
+        forceRendezvous = False
+        self.obs.generateSensorNodes(self.roads,8,forceExit,forceRendezvous)
         
         self.__setInitialLocations()
         self.__setRendezvousNodes()
@@ -299,19 +301,20 @@ class SimulationRunner:
                 agent_colors.append('red')
 
         DistMatrix = self.roads.buildDistMatrix()
-        P_transition = 0 # initial transition probability for particles at rendezvous nodes
+        P_tr = 0 # initial transition probability for particles at rendezvous nodes
+        Pb = 0.9
         for i in range(self.maxTimeSteps):
             Behavior.runOneStep(self.pop, self.roads)
             if runEstimator:
                 """ Run estimator prediction and measurement steps """
-                self.obs.noisyMeasurementModel(self.pop, 0.9)
+                self.obs.noisyMeasurementModel(self.pop, Pb)
                 if (observersOutputFile):
                     self.writeSensorLocations(obsFile,i+1)
 
-                P_transition = EstimatorBehavior.runPredictionStep(self.estimator, \
-                    self.pop, self.roads, P_transition)
+                P_tr = EstimatorBehavior.runPredictionStep(self.estimator, \
+                    self.pop, self.roads, P_tr)
                 EstimatorMeasurement.runMeasurementStep(self.estimator, \
-                    self.pop, self.roads, self.obs, DistMatrix, 0.9)
+                    self.pop, self.roads, self.obs, DistMatrix, Pb)
                 if (particlesOutputFile):
                     self.writeParticleLocations(partFile, i+1)
             
