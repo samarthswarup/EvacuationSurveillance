@@ -16,15 +16,20 @@ class Observers:
         self.sensorNodeList = []
         self.sensorCount = []
         self.trueCount = []
+        self.movingSensors = False
         
     def die(self):
         """Observers destructor."""
         pass
 
-    def generateSensorNodes(self, roads, n, forceExit, forceRendezvous):
+    def generateSensorNodes(self, roads, n, forceExit, forceRendezvous, moveSensors):
         # n is number of Sensor Nodes
         # m is max number of Nodes in Graph
         logger.debug("Generating a list of " + str(n) + " sensor nodes.")
+        if moveSensors:
+            forceExit = False
+            forceRendezvous = False
+            self.movingSensors = True
 
         self.sensorNodeList = np.zeros(n).astype(int).tolist()
         nodeList = roads.R.nodes()
@@ -65,7 +70,17 @@ class Observers:
 
         logger.debug("Sensor nodes: " + str(self.sensorNodeList))
     
-    def noisyMeasurementModel(self, population, Pb):
+    def moveSensorNodes(self, roads):
+        for sensorIndx in range(len(self.sensorNodeList)):
+            neighbors = roads.getNeighbourNodes(self.sensorNodeList[sensorIndx])
+            nwNodeIndx = random.randint(0,len(neighbors)-1)
+            self.sensorNodeList[sensorIndx] = neighbors[nwNodeIndx]
+
+    def noisyMeasurementModel(self, population, roads, Pb):
+        """ Move sensors if set """ 
+        if(self.movingSensors):
+            self.moveSensorNodes(roads)
+
         """ Records number of agents at sensor node locations & adds noise to simulate a sensor """
         logger.debug("Measuring agents present at each sensor & applying" \
             " binomial distribution to account for noise")

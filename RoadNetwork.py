@@ -143,6 +143,9 @@ class RoadNetwork:
     def getNumberOfNodes(self):
         return nx.number_of_nodes(self.R)
 
+    def getNeighbourNodes(self, a):
+        return list(self.R.neighbors(a));
+
     def buildDistMatrix(self):
         DistMatrix = []
         for node1 in self.R.nodes:

@@ -16,7 +16,7 @@ class EstimatorMeasurement:
         """EstimatorMeasurement destructor."""
         pass
 
-    @classmethod
+    @classmethod    
     def runMeasurementStep(cls, estm, pop, roads, obs, DistMatrix, Pb):
         """Update the state of each particle using measurement data, one time step"""
         logger.debug("Measurement Step")
@@ -266,8 +266,8 @@ class EstimatorMeasurement:
         pVecCandSense = stats.binom.pmf(obs.sensorCount,histCand,Pb)
         pVecPropSense = stats.binom.pmf(obs.sensorCount,histProp,Pb)
         flippedSensorInd = max(sensorInd,oldSensorInd)
-        """Add 1 to account for 0 sensor"""
-        pRatioSense = float(pVecPropSense[flippedSensorInd]+1)/float(pVecCandSense[flippedSensorInd]+1)
+        pVecCandSense[np.where(pVecCandSense <= 1e-12)[0]] = 1e-12
+        pRatioSense = float(pVecPropSense[flippedSensorInd])/float(pVecCandSense[flippedSensorInd])
 
         """Acceptance prob. ratio due to prior"""
         nonSenseNodeList = np.setdiff1d(np.arange(0,estm.numNodes), \

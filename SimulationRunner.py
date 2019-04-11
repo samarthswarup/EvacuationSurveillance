@@ -36,7 +36,8 @@ class SimulationRunner:
         self.obs = Observers()
         forceExit = False
         forceRendezvous = False
-        self.obs.generateSensorNodes(self.roads,8,forceExit,forceRendezvous)
+        moveSensors = True # If true, forceExit & forceRendezvous forced to false
+        self.obs.generateSensorNodes(self.roads,8,forceExit,forceRendezvous,moveSensors)
         
         self.__setInitialLocations()
         self.__setRendezvousNodes()
@@ -49,7 +50,6 @@ class SimulationRunner:
 
         print("Max group ID:", self.pop.maxGID)
         print("Exit Nodes:", self.roads.exitNodeList)
-        print("Sensor Nodes:", self.obs.sensorNodeList)
         print("Rendezvous Nodes:", self.roads.rendezvousNodeList)
 
         groupsFile = open(filePath + 'groups_' + str(runNumber) + '.txt', "w")
@@ -108,7 +108,7 @@ class SimulationRunner:
         return e
     
     def writeNodeLocations(self, fileHandle):
-        fileHandle.write("nodeId,x_coord,y_coord,[1 (normal) / 2 (exit) / 3 (rendezvous) / 4 (sensor)]\n")
+        fileHandle.write("nodeId,x_coord,y_coord,[1 (normal) / 2 (exit) / 3 (rendezvous) ]\n")
         for node in self.roads.R.nodes():
             x = self.roads.R.nodes[node]['pos'][0]
             y = self.roads.R.nodes[node]['pos'][1]
@@ -117,8 +117,8 @@ class SimulationRunner:
                 node_type = 2
             elif node in self.roads.rendezvousNodeList:
                 node_type = 3
-            elif node in self.obs.sensorNodeList:
-                node_type = 4
+            # elif node in self.obs.sensorNodeList:
+            #     node_type = 4
             fileHandle.write(str(node) + "," + str(x) + "," + str(y) + "," + str(node_type))
             fileHandle.write("\n")
 
@@ -161,10 +161,10 @@ class SimulationRunner:
         fileHandle.write("\n")
 
     def writeKeyLocations(self, fileHandle):
-        fileHandle.write("sensors")
-        for i in self.obs.sensorNodeList:
-            fileHandle.write(","+str(i))
-        fileHandle.write("\n")
+        # fileHandle.write("sensors")
+        # for i in self.obs.sensorNodeList:
+        #     fileHandle.write(","+str(i))
+        # fileHandle.write("\n")
 
         fileHandle.write("exit_nodes")
         for i in self.roads.exitNodeList:
@@ -188,16 +188,18 @@ class SimulationRunner:
                 fileHandle.write("," + str(pid))
             fileHandle.write("\n")
 
-    def writeSensorLocations(self, fileHandle, timeStep):
+    def writeSensorObservations(self, fileHandle, timeStep):
         if (timeStep==0):
             fileHandle.write("time_step")
-            for i in self.obs.sensorNodeList:
+            for i in range(len(self.obs.sensorNodeList)):
+                fileHandle.write(",loc_" + str(i))
                 fileHandle.write(",sensor_" + str(i))
                 fileHandle.write(",true_" + str(i))
             fileHandle.write("\n")
         
         fileHandle.write(str(timeStep))
         for i in range(len(self.obs.sensorNodeList)):
+            fileHandle.write(","+str(self.obs.sensorNodeList[i]))
             fileHandle.write(","+str(self.obs.sensorCount[i]))
             fileHandle.write(","+str(self.obs.trueCount[i]))
         fileHandle.write("\n")
@@ -287,7 +289,7 @@ class SimulationRunner:
 
         if observersOutputFile:
             obsFile = open(observersOutputFile, 'w')
-            self.writeSensorLocations(obsFile, 0)
+            self.writeSensorObservations(obsFile, 0)
 
         if particlesOutputFile:
             partFile = open(particlesOutputFile, 'w')
@@ -307,9 +309,9 @@ class SimulationRunner:
             Behavior.runOneStep(self.pop, self.roads)
             if runEstimator:
                 """ Run estimator prediction and measurement steps """
-                self.obs.noisyMeasurementModel(self.pop, Pb)
+                self.obs.noisyMeasurementModel(self.pop, self.roads, Pb)
                 if (observersOutputFile):
-                    self.writeSensorLocations(obsFile,i+1)
+                    self.writeSensorObservations(obsFile,i+1)
 
                 P_tr = EstimatorBehavior.runPredictionStep(self.estimator, \
                     self.pop, self.roads, P_tr)
@@ -400,8 +402,6 @@ class SimulationRunner:
                 textvar=plt.figtext(0.99, 0.01, "t = " + str(i), horizontalalignment='right')
                 textvar=plt.figtext(0.5, 0.95, "Estimated Position (Particle Filter)", horizontalalignment='center')
                 plt.pause(0.01)
-
-                #input("Press Enter to continue...")
         
         if (showSimVis or (runEstimator and showEstimatorVis)):
             plt.show()
