@@ -31,6 +31,7 @@ class Behavior:
             while pop.locations[loc]:
                 pid = pop.locations[loc].pop()
                 state = pop.people[pid]
+                #print("Moving agent ID " + str(pid) + " with behavior " + state["behavior"])
                 if (state["behavior"] == "E"):
                     newstate = cls.evacuation(pid, state, roads)
                     updatedPeople[pid] = newstate

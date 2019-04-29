@@ -35,7 +35,7 @@ class EstimatorMeasurement:
 
         estm.zHat = np.reshape(zHatNext,estm.numParts*estm.numAgents,1).astype(int).tolist()
         estm.alphaHat = np.reshape(alphaHatNext,estm.numParts*estm.numAgents,1).tolist()
-        cls.updatePartData(estm)
+        cls.updatePartData(estm, roads)
 
     @classmethod
     def buildProbabilityTable(cls, estm, obs, DistMatrix):
@@ -145,7 +145,7 @@ class EstimatorMeasurement:
         q_sense = q_flat_loc[:,np.array(obs.sensorNodeList)]
 
         """ Initialize outputs """
-        cVec = np.multiply(-2,np.ones(estm.numAgents)) # -2 means empty, -1 means unassociate, integer corresponds to sensor
+        cVec = np.multiply(-2,np.ones(estm.numAgents)) # -2 means empty, -1 means unassociate, 0 or integer corresponds to sensor
         partIdVec_flat = np.multiply(-1,np.ones(estm.numAgents))
         assocAgentVec = np.multiply(-1,np.ones(estm.numAgents))
         assocPartVec_flat = np.multiply(-1,np.ones(estm.numAgents*estm.numParts))
@@ -212,10 +212,9 @@ class EstimatorMeasurement:
 
         """Exclude agents from consideration that cannot be "flipped".  Do this 
         by comparing the candidate count to measured count"""
-        bins = np.arange(0,len(obs.sensorNodeList)+1)
-        histCand = np.histogram(cVecCand,bins)[0]
-
-        minAllowFlag = histCand <= np.array(obs.sensorCount)
+        bins = np.arange(0,len(obs.sensorNodeList)+2)
+        histCand = np.histogram(np.add(cVecCand,1),bins)[0]
+        minAllowFlag = histCand[1:len(histCand)] <= np.array(obs.sensorCount)
 
         cannotFlipSensorId = np.where(minAllowFlag)[0]
         cannotFlipAgentId = np.array([])
@@ -261,8 +260,10 @@ class EstimatorMeasurement:
         cVecProp[agId] = sensorInd
 
         """Acceptance prob. ratio due to sensing"""
-        histCand = np.histogram(cVecCand,bins)[0]
-        histProp = np.histogram(cVecProp,bins)[0]
+        histCand = np.histogram(np.add(cVecCand,1),bins)[0]
+        histCand = histCand[1:len(histCand)]
+        histProp = np.histogram(np.add(cVecProp,1),bins)[0]
+        histProp = histProp[1:len(histProp)]
         pVecCandSense = stats.binom.pmf(obs.sensorCount,histCand,Pb)
         pVecPropSense = stats.binom.pmf(obs.sensorCount,histProp,Pb)
         flippedSensorInd = max(sensorInd,oldSensorInd)
@@ -329,7 +330,8 @@ class EstimatorMeasurement:
     def randSamp(cls, weightVec, locnum):
         weightVecSum = float(np.sum(weightVec))
         if weightVecSum < 1e-30:
-            print('weight vector is empty | call from loc #' + str(locnum))
+            #locnum & print statement used for debugging
+            #print('weight vector is empty | call from loc #' + str(locnum))
             weightVecLength = len(weightVec)
             weightVecNorm = np.divide(np.ones(weightVecLength),float(weightVecLength))
         else:
@@ -341,12 +343,14 @@ class EstimatorMeasurement:
         return int(np.min(indices))
 
     @classmethod
-    def updatePartData(cls, estm):
+    def updatePartData(cls, estm, roads):
         """ Updates estimator location and alpha vectors """
         curr_part = 0
         for agent in estm.estimator_pop:
             for particle in agent:
                 particle["location"] = estm.zHat[curr_part]
                 particle["alpha"] = estm.alphaHat[curr_part]
+                if (estm.bHat[curr_part] == "X" and estm.zHat[curr_part] not in roads.exitNodeList):
+                    estm.alphaHat[curr_part] = "E"
                 particle["behavior"] = estm.bHat[curr_part]
                 curr_part += 1

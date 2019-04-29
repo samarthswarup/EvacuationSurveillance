@@ -22,7 +22,7 @@ class SimulationRunner:
      Creates the Estimator
      Runs the simulation and the estimator"""
     
-    def __init__(self, maxTimeSteps, runNumber, filePath):
+    def __init__(self, maxTimeSteps, runNumber, filePath, forceExit, forceRendezvous, moveSensors, runEstimator):
         """SimulationRunner constructor."""
         # self.logger = logging.getLogger(__name__ + '.SimulationRunner')
         # self.logger.info("Initializing the simulation.")
@@ -34,23 +34,22 @@ class SimulationRunner:
         self.roads.saveNetworkToFile(filePath + "roadNetworkSpatial_" + str(runNumber) + ".gml")
 
         self.obs = Observers()
-        forceExit = False
-        forceRendezvous = False
-        moveSensors = True # If true, forceExit & forceRendezvous forced to false
         self.obs.generateSensorNodes(self.roads,8,forceExit,forceRendezvous,moveSensors)
         
         self.__setInitialLocations()
         self.__setRendezvousNodes()
         self.pop.savePopulationToFile(filePath + 'population_' + str(runNumber) + '.txt')
 
-        self.estimator = Estimator()
-        self.estimator.createEstimatorPopulation(self.pop,50)
-        self.estimator.randomizeParticles(self.roads,0.2)
-        self.estimator.saveEstimatorFile(filePath + 'estimator_population_' + str(runNumber) + '.txt')
+        if(runEstimator):
+            self.estimator = Estimator()
+            self.estimator.createEstimatorPopulation(self.pop,50)
+            self.estimator.randomizeParticles(self.roads,0.2)
+            self.estimator.saveEstimatorFile(filePath + 'estimator_population_' + str(runNumber) + '.txt')
 
         print("Max group ID:", self.pop.maxGID)
         print("Exit Nodes:", self.roads.exitNodeList)
         print("Rendezvous Nodes:", self.roads.rendezvousNodeList)
+        print("Initial Sensor Locs:", self.obs.sensorNodeList)
 
         groupsFile = open(filePath + 'groups_' + str(runNumber) + '.txt', "w")
         self.writeGroups(groupsFile)
@@ -161,11 +160,6 @@ class SimulationRunner:
         fileHandle.write("\n")
 
     def writeKeyLocations(self, fileHandle):
-        # fileHandle.write("sensors")
-        # for i in self.obs.sensorNodeList:
-        #     fileHandle.write(","+str(i))
-        # fileHandle.write("\n")
-
         fileHandle.write("exit_nodes")
         for i in self.roads.exitNodeList:
             fileHandle.write(","+str(i))
@@ -237,37 +231,9 @@ class SimulationRunner:
     
     def runSimulation(self, groupToTrack, spatialLocationOutputFile, \
         graphLocationOutputFile, behaviorOutputFile, observersOutputFile, \
-        particlesOutputFile):
-        """Update the simulation by one time step"""
+        particlesOutputFile, showSimVis, runEstimator, showEstimatorVis):
+
         logger.info("Now starting the simulation.")
-        showSimVis = False
-        runEstimator = False
-        showEstimatorVis = False
-        """ User input for estimator and visuals """
-        while(True):
-            Input = raw_input('Show Visual? (T/F) :: ')
-            if Input.lower() == 't':
-                showSimVis = True
-                break
-            elif Input.lower() == 'f':
-                showSimVis = False
-                break
-        while(True):
-            Input = raw_input('Run Estimator? (T/F) :: ')
-            if Input.lower() == 't':
-                runEstimator = True
-                while(True):
-                    Input = raw_input('Show Estimator Visual? (T/F) :: ')
-                    if Input.lower() == 't':
-                        showEstimatorVis = True
-                        break
-                    elif Input.lower() == 'f':
-                        showEstimatorVis = False
-                        break
-                break
-            elif Input.lower() == 'f':
-                runEstimator = False
-                break
 
         if (showSimVis or (runEstimator and showEstimatorVis)):
             positions = nx.get_node_attributes(self.roads.R ,'pos')
@@ -291,7 +257,7 @@ class SimulationRunner:
             obsFile = open(observersOutputFile, 'w')
             self.writeSensorObservations(obsFile, 0)
 
-        if particlesOutputFile:
+        if particlesOutputFile and runEstimator:
             partFile = open(particlesOutputFile, 'w')
             self.writeParticleLocations(partFile, 0)
 
@@ -306,13 +272,15 @@ class SimulationRunner:
         P_tr = 0 # initial transition probability for particles at rendezvous nodes
         Pb = 0.9
         for i in range(self.maxTimeSteps):
-            Behavior.runOneStep(self.pop, self.roads)
+
             if runEstimator:
-                """ Run estimator prediction and measurement steps """
-                self.obs.noisyMeasurementModel(self.pop, self.roads, Pb)
+                self.obs.noisyMeasurementModel(self.pop, Pb)
                 if (observersOutputFile):
                     self.writeSensorObservations(obsFile,i+1)
 
+            Behavior.runOneStep(self.pop, self.roads)
+            if runEstimator:
+                """ Run estimator prediction and measurement steps """
                 P_tr = EstimatorBehavior.runPredictionStep(self.estimator, \
                     self.pop, self.roads, P_tr)
                 EstimatorMeasurement.runMeasurementStep(self.estimator, \
@@ -331,7 +299,7 @@ class SimulationRunner:
             
             print("Num agents exited:", self.__numAgentsExited())
             if runEstimator:
-                print("Num particles exited:", self.__numPartExited())
+                 print("Num particles exited:", self.__numPartExited())
             if showSimVis:
                 plt.figure(1,figsize=(7,7))
                 plt.clf()
@@ -341,7 +309,6 @@ class SimulationRunner:
                 pid_count = 0
                 if (groupToTrack is not None):
                     for pid in pidsToTrack:
-                        #print("PID:", pid, "Properties:", self.pop.people[pid])
                         pidLoc = self.pop.people[pid]["location"]
                         color_map[pidLoc] = agent_colors[pid_count]
                         if (pidLoc in labels_dict):
@@ -351,10 +318,8 @@ class SimulationRunner:
                         pid_count += 1
                 for n in self.roads.exitNodeList:
                     color_map[n] = 'yellow'
-                    #labels_dict[n] = str(n)
                 for n in self.roads.rendezvousNodeList:
                     color_map[n] = 'purple'
-                    #labels_dict[n] = str(n)
 
                 nx.draw(self.roads.R, \
                     pos = positions, \
@@ -402,6 +367,9 @@ class SimulationRunner:
                 textvar=plt.figtext(0.99, 0.01, "t = " + str(i), horizontalalignment='right')
                 textvar=plt.figtext(0.5, 0.95, "Estimated Position (Particle Filter)", horizontalalignment='center')
                 plt.pause(0.01)
+
+            if runEstimator and self.obs.movingSensors:
+                self.obs.moveSensorNodes(self.roads)
         
         if (showSimVis or (runEstimator and showEstimatorVis)):
             plt.show()

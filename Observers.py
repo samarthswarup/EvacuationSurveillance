@@ -17,6 +17,8 @@ class Observers:
         self.sensorCount = []
         self.trueCount = []
         self.movingSensors = False
+        self.forceExit = False
+        self.forceRendezvous = False
         
     def die(self):
         """Observers destructor."""
@@ -27,43 +29,35 @@ class Observers:
         # m is max number of Nodes in Graph
         logger.debug("Generating a list of " + str(n) + " sensor nodes.")
         if moveSensors:
-            forceExit = False
-            forceRendezvous = False
             self.movingSensors = True
+        if forceExit:
+            self.forceExit = True
+        if forceRendezvous:
+            self.forceRendezvous = True
 
         self.sensorNodeList = np.zeros(n).astype(int).tolist()
         nodeList = roads.R.nodes()
-        nodeNum = 0
+        start_rep = 0
         senseNum = 0
 
-        for i in nodeList:
-            if (nodeNum < n):
+        if (self.forceExit):
+            exitList = roads.exitNodeList
+            start_rep += len(exitList)
+            for i in exitList:
                 self.sensorNodeList[senseNum] = i
                 senseNum += 1
-            elif nodeNum >= n and random.random() < n/float(nodeNum+1):
-                replace = random.randint(0,n-1)
-                self.sensorNodeList[replace] = i
-            nodeNum += 1
-
-        replace = 0
-        if (forceExit):
-            exitList = roads.exitNodeList
-            for i in exitList:
-                if i in self.sensorNodeList:
-                    continue
-                while self.sensorNodeList[replace] in exitList:
-                    replace += 1
-                self.sensorNodeList[replace] = i
-                replace += 1
-        if (forceRendezvous):
+        if (self.forceRendezvous):
             rendezvousList = roads.rendezvousNodeList
+            start_rep += len(rendezvousList)
             for i in rendezvousList:
-                if i in self.sensorNodeList:
-                    continue
-                while self.sensorNodeList[replace] in rendezvousList:
-                    replace += 1
-                self.sensorNodeList[replace] = i
-                replace += 1
+                self.sensorNodeList[senseNum] = i
+                senseNum += 1
+
+        for i in range(senseNum,n):
+            randNode = random.randint(0,len(nodeList)-1)
+            while (randNode in self.sensorNodeList):
+                randNode = random.randint(0,len(nodeList)-1)
+            self.sensorNodeList[i] = randNode
 
         self.sensorCount = np.zeros(n).astype(int).tolist()
         self.trueCount = np.zeros(n).astype(int).tolist()
@@ -71,16 +65,19 @@ class Observers:
         logger.debug("Sensor nodes: " + str(self.sensorNodeList))
     
     def moveSensorNodes(self, roads):
-        for sensorIndx in range(len(self.sensorNodeList)):
+        """ Randomly moves sensor nodes to a neighbouring node if mode is activated 
+        Will not move forced exit or rendezvous nodes """
+        start = 0
+        if (self.forceExit):
+            start = start + len(roads.exitNodeList)
+        if (self.forceRendezvous):
+            start = start + len(roads.rendezvousNodeList)
+        for sensorIndx in range(start,len(self.sensorNodeList)):
             neighbors = roads.getNeighbourNodes(self.sensorNodeList[sensorIndx])
             nwNodeIndx = random.randint(0,len(neighbors)-1)
             self.sensorNodeList[sensorIndx] = neighbors[nwNodeIndx]
 
-    def noisyMeasurementModel(self, population, roads, Pb):
-        """ Move sensors if set """ 
-        if(self.movingSensors):
-            self.moveSensorNodes(roads)
-
+    def noisyMeasurementModel(self, population, Pb):
         """ Records number of agents at sensor node locations & adds noise to simulate a sensor """
         logger.debug("Measuring agents present at each sensor & applying" \
             " binomial distribution to account for noise")

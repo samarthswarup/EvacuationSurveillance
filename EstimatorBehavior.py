@@ -26,6 +26,7 @@ class EstimatorBehavior:
         pid = 0
         for agent in estm.estimator_pop:
             updatedAgent = []
+            ppid = 0
             for particle in agent:
                 state = particle
                 if (state["behavior"] == "E"):
@@ -45,6 +46,7 @@ class EstimatorBehavior:
                     updatedAgent.append(newstate)
                 else:
                     print("Unknown behavior " + state["behavior"] + ", PID = " + str(pid))
+                ppid += 1
             updatedEstimator.append(updatedAgent)
             pid += 1
 
@@ -58,7 +60,10 @@ class EstimatorBehavior:
     def estimator_wait(cls, p, st, r, pop, P_tr):
         """ Uses a probability to determine whether a given particle
         will continue to wait at a rendezvous node"""
-        P_0 = 0.2
+        if (random.random() < DO_NOTHING_PROBABILITY):
+            return [st, P_tr]
+
+        P_0 = 0.10
         P_tr = (1-P_0)*P_tr + P_0
 
         if (random.random() <= P_tr):
